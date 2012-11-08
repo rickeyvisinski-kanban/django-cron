@@ -95,26 +95,25 @@ class CronScheduler(object):
 			Timer(polling_frequency, self.execute).start()
 			return
 			
-		jobs = models.Job.objects.all()
+		jobs = models.Job.objects.filter(queued=True)
 		for job in jobs:
-			if job.queued:
-				time_delta = datetime.now() - job.last_run
-				if (time_delta.seconds + 86400*time_delta.days) > job.run_frequency:
-					inst = cPickle.loads(str(job.instance))
-					args = cPickle.loads(str(job.args))
-					kwargs = cPickle.loads(str(job.kwargs))
-					
-					try:
-						inst.run(*args, **kwargs)
-						job.last_run = datetime.now()
-						job.save()
-						
-					except Exception:
-						# if the job throws an error, just remove it from
-						# the queue. That way we can find/fix the error and
-						# requeue the job manually
-						job.queued = False
-						job.save()
+            time_delta = datetime.now() - job.last_run
+            if (time_delta.seconds + 86400*time_delta.days) > job.run_frequency:
+                inst = cPickle.loads(str(job.instance))
+                args = cPickle.loads(str(job.args))
+                kwargs = cPickle.loads(str(job.kwargs))
+                
+                try:
+                    inst.run(*args, **kwargs)
+                    job.last_run = datetime.now()
+                    job.save()
+                    
+                except Exception:
+                    # if the job throws an error, just remove it from
+                    # the queue. That way we can find/fix the error and
+                    # requeue the job manually
+                    job.queued = False
+                    job.save()
 
 		status.executing = False
 		status.save()
